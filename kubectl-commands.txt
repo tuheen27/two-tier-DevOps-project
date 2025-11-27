@@ -1,0 +1,114 @@
+# Kubernetes Commands Reference for Two-Tier Flask App
+
+## Basic Commands
+kubectl version                          # Check kubectl version
+kubectl cluster-info                     # Display cluster information
+kubectl get nodes                        # List all nodes in the cluster
+
+## Namespace Management
+kubectl create namespace flask-app       # Create a new namespace
+kubectl get namespaces                   # List all namespaces
+kubectl delete namespace flask-app       # Delete a namespace
+
+## Deployment Management
+kubectl apply -f k8s/deployment.yml      # Create/update deployment
+kubectl get deployments                  # List all deployments
+kubectl get deployment two-tier-app      # Get specific deployment
+kubectl describe deployment two-tier-app # Show detailed deployment info
+kubectl delete deployment two-tier-app   # Delete specific deployment
+kubectl delete deployment --all          # Delete all deployments
+kubectl rollout restart deployment/two-tier-app  # Restart deployment
+kubectl rollout status deployment/two-tier-app   # Check rollout status
+kubectl scale deployment two-tier-app --replicas=5  # Scale deployment
+
+## Pod Management
+kubectl get pods                         # List all pods
+kubectl get pods -l app=two-tier-app     # List pods with specific label
+kubectl get pods -o wide                 # List pods with more details
+kubectl describe pod <pod-name>          # Show detailed pod info
+kubectl logs <pod-name>                  # View pod logs
+kubectl logs -f <pod-name>               # Follow pod logs in real-time
+kubectl logs -l app=two-tier-app --tail=50  # View last 50 lines of logs
+kubectl exec -it <pod-name> -- /bin/bash # Execute commands in pod
+kubectl delete pod <pod-name>            # Delete specific pod
+kubectl delete pod --all                 # Delete all pods
+
+## Service Management
+kubectl apply -f k8s/service.yml         # Create/update services
+kubectl get services                     # List all services
+kubectl get svc                          # Short form of get services
+kubectl describe service flask-service-lb # Show detailed service info
+kubectl delete service flask-service-lb  # Delete specific service
+kubectl delete service --all             # Delete all services
+kubectl expose deployment two-tier-app --type=LoadBalancer --port=5000  # Expose deployment
+
+## Port Forwarding
+kubectl port-forward deployment/two-tier-app 5000:5000  # Forward local port to deployment
+kubectl port-forward service/flask-service-lb 5000:5000 # Forward local port to service
+kubectl port-forward pod/<pod-name> 5000:5000           # Forward local port to pod
+
+## Resource Monitoring
+kubectl top nodes                        # Show node resource usage
+kubectl top pods                         # Show pod resource usage
+kubectl get events --sort-by=.metadata.creationTimestamp  # View events
+
+## ConfigMap and Secrets
+kubectl create configmap flask-config --from-env-file=.env  # Create configmap from file
+kubectl get configmaps                   # List all configmaps
+kubectl describe configmap flask-config  # Show configmap details
+kubectl create secret generic mongo-secret --from-literal=username=admin --from-literal=password=password123
+kubectl get secrets                      # List all secrets
+kubectl describe secret mongo-secret     # Show secret details
+
+## Debugging
+kubectl describe pod <pod-name>          # Debug pod issues
+kubectl logs <pod-name> --previous       # View logs from previous container instance
+kubectl get events                       # View cluster events
+kubectl exec -it <pod-name> -- env       # Check environment variables in pod
+
+## Delete All Resources
+kubectl delete all -l app=two-tier-app   # Delete all resources with specific label
+kubectl delete deployment --all          # Delete all deployments
+kubectl delete service --all             # Delete all services
+kubectl delete pod --all                 # Delete all pods
+kubectl delete all --all                 # Delete all resources in namespace
+
+## Apply Multiple Files
+kubectl apply -f k8s/                    # Apply all YAML files in directory
+kubectl delete -f k8s/                   # Delete resources defined in directory
+
+## Context and Configuration
+kubectl config view                      # View kubeconfig
+kubectl config get-contexts              # List all contexts
+kubectl config use-context <context>     # Switch context
+kubectl config current-context           # Show current context
+
+## Specific to This Project
+
+# Deploy the Flask application
+kubectl apply -f k8s/deployment.yml
+kubectl apply -f k8s/service.yml
+
+# Check deployment status
+kubectl get pods -l app=two-tier-app
+kubectl get services -l app=two-tier-app
+
+# View logs
+kubectl logs -l app=two-tier-app --tail=50 -f
+
+# Access application
+# LoadBalancer: http://localhost:5000
+# NodePort: http://localhost:30080
+
+# Restart deployment after code changes
+kubectl rollout restart deployment/two-tier-app
+
+# Scale application
+kubectl scale deployment two-tier-app --replicas=5
+
+# Delete everything
+kubectl delete -f k8s/deployment.yml
+kubectl delete -f k8s/service.yml
+
+# Or delete by label
+kubectl delete all -l app=two-tier-app

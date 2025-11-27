@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: two-tier-app
+  labels:
+    app: two-tier-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: two-tier-app
+  template:
+    metadata:
+      labels:
+        app: two-tier-app
+    spec:
+      containers:
+      - name: flask-app
+        image: tuheen27/two-tier-frontend-application:0.1
+        ports:
+        - containerPort: 5000
+        env:
+        - name: MONGO_HOST
+          value: "mongodb-service"
+        - name: MONGO_PORT
+          value: "27017"
+        - name: MONGO_USERNAME
+          value: "admin"
+        - name: MONGO_PASSWORD
+          value: "password123"
+        - name: MONGO_AUTH_SOURCE
+          value: "admin"
+        - name: MONGO_DB_NAME
+          value: "flask_app"
+        - name: MONGO_COLLECTION_NAME
+          value: "users"
