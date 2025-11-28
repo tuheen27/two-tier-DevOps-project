@@ -24,12 +24,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 3: Generate version tag
-      - name: Generate version tag
-        id: version
-        run: echo "tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
-
-      # Step 4: Build and push Docker image with latest tag
+      # Step 3: Build and push Docker image with latest tag
       - name: Build and Push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -40,7 +35,7 @@ jobs:
             tuheen27/two-tier-frontend-application:v1.0.${{ github.run_number }}
             tuheen27/two-tier-frontend-application:${{ github.sha }}
       
-      # Step 5: Verify pushed images
+      # Step 4: Verify pushed images
       - name: Verify Docker images
         run: |
           echo "✅ Images pushed successfully:"
