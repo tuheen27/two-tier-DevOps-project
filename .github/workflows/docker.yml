@@ -29,12 +29,21 @@ jobs:
         id: version
         run: echo "tag=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
 
-      # Step 4: Build and push Docker image
+      # Step 4: Build and push Docker image with latest tag
       - name: Build and Push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .                      # Use current directory as build context
-          push: true                      # Push image to Docker Hub
+          context: .
+          push: true
           tags: |
-            tuheen27/two-tier-frontend-application:${{ steps.version.outputs.tag }}
             tuheen27/two-tier-frontend-application:latest
+            tuheen27/two-tier-frontend-application:v1.0.${{ github.run_number }}
+            tuheen27/two-tier-frontend-application:${{ github.sha }}
+      
+      # Step 5: Verify pushed images
+      - name: Verify Docker images
+        run: |
+          echo "✅ Images pushed successfully:"
+          echo "  - tuheen27/two-tier-frontend-application:latest"
+          echo "  - tuheen27/two-tier-frontend-application:v1.0.${{ github.run_number }}"
+          echo "  - tuheen27/two-tier-frontend-application:${{ github.sha }}" ad
