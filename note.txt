@@ -1,2 +1,0 @@
-project update: dockeraction is dne k8s is completed jenkins 
-now use jenkins to automated dockerfile creation. 
