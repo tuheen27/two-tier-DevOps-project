@@ -24,4 +24,4 @@ ENV MONGO_HOST=localhost \
     MONGO_COLLECTION_NAME=users
 
 # Run the Flask application
-CMD ["python", "app.py"]
+CMD ["python", "app.py"] 

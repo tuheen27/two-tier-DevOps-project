@@ -31,7 +31,7 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        sh 'echo $DOCKER_PASS | docker login -u "$DOCKER_USER" --password-stdin'
+                        bat 'echo %DOCKER_PASS% | docker login -u "%DOCKER_USER%" --password-stdin'
                         echo '✅ Docker Hub login successful'
                     }
                 }
@@ -41,20 +41,14 @@ pipeline {
         stage('Cleanup Old Containers') {
             steps {
                 echo '========== Cleaning Up Old Test Containers =========='
-                sh """
-                    # Stop containers
-                    docker stop ${APP_CONTAINER} 2>/dev/null || true
-                    docker stop ${MONGO_CONTAINER} 2>/dev/null || true
-                    
-                    # Remove containers
-                    docker rm ${APP_CONTAINER} 2>/dev/null || true
-                    docker rm ${MONGO_CONTAINER} 2>/dev/null || true
-                    
-                    # Force remove if still exists
-                    docker rm -f ${APP_CONTAINER} 2>/dev/null || true
-                    docker rm -f ${MONGO_CONTAINER} 2>/dev/null || true
-                    
-                    echo '✅ Old containers cleaned up'
+                bat """
+                    docker stop %APP_CONTAINER% 2>nul || echo Skipped
+                    docker stop %MONGO_CONTAINER% 2>nul || echo Skipped
+                    docker rm %APP_CONTAINER% 2>nul || echo Skipped
+                    docker rm %MONGO_CONTAINER% 2>nul || echo Skipped
+                    docker rm -f %APP_CONTAINER% 2>nul || echo Skipped
+                    docker rm -f %MONGO_CONTAINER% 2>nul || echo Skipped
+                    echo ✅ Old containers cleaned up
                 """
             }
         }
@@ -62,19 +56,12 @@ pipeline {
         stage('Start MongoDB') {
             steps {
                 echo '========== Starting MongoDB Container =========='
-                sh """
-                    docker run -d \
-                      --name ${MONGO_CONTAINER} \
-                      -p ${MONGO_PORT}:27017 \
-                      -e MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME} \
-                      -e MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD} \
-                      ${MONGO_IMAGE}
-                    
-                    echo '⏳ Waiting for MongoDB to be ready...'
-                    sleep 10
-                    
-                    echo '✅ MongoDB started successfully'
-                    docker ps | grep ${MONGO_CONTAINER}
+                bat """
+                    docker run -d --name %MONGO_CONTAINER% -p %MONGO_PORT%:27017 -e MONGO_INITDB_ROOT_USERNAME=%MONGO_USERNAME% -e MONGO_INITDB_ROOT_PASSWORD=%MONGO_PASSWORD% %MONGO_IMAGE%
+                    echo ⏳ Waiting for MongoDB to be ready...
+                    timeout /t 10 /nobreak
+                    echo ✅ MongoDB started successfully
+                    docker ps | findstr %MONGO_CONTAINER%
                 """
             }
         }
@@ -82,10 +69,10 @@ pipeline {
         stage('Pull Latest Application Image') {
             steps {
                 echo '========== Pulling Latest Image from Docker Hub =========='
-                sh """
-                    docker pull ${DOCKERHUB_IMAGE}
-                    echo '✅ Image pulled successfully'
-                    docker images | grep two-tier-frontend-application
+                bat """
+                    docker pull %DOCKERHUB_IMAGE%
+                    echo ✅ Image pulled successfully
+                    docker images | findstr two-tier-frontend-application
                 """
             }
         }
@@ -93,25 +80,12 @@ pipeline {
         stage('Run Application') {
             steps {
                 echo '========== Starting Flask Application Container =========='
-                sh """
-                    docker run -d \
-                      --name ${APP_CONTAINER} \
-                      -p ${TEST_PORT}:5000 \
-                      --link ${MONGO_CONTAINER}:mongodb \
-                      -e MONGO_HOST=${MONGO_CONTAINER} \
-                      -e MONGO_PORT=27017 \
-                      -e MONGO_USERNAME=${MONGO_USERNAME} \
-                      -e MONGO_PASSWORD=${MONGO_PASSWORD} \
-                      -e MONGO_AUTH_SOURCE=admin \
-                      -e MONGO_DB_NAME=${MONGO_DB} \
-                      -e MONGO_COLLECTION_NAME=users \
-                      ${DOCKERHUB_IMAGE}
-                    
-                    echo '⏳ Waiting for application to start...'
-                    sleep 15
-                    
-                    echo '✅ Application started successfully'
-                    docker ps | grep ${APP_CONTAINER}
+                bat """
+                    docker run -d --name %APP_CONTAINER% -p %TEST_PORT%:5000 --link %MONGO_CONTAINER%:mongodb -e MONGO_HOST=%MONGO_CONTAINER% -e MONGO_PORT=27017 -e MONGO_USERNAME=%MONGO_USERNAME% -e MONGO_PASSWORD=%MONGO_PASSWORD% -e MONGO_AUTH_SOURCE=admin -e MONGO_DB_NAME=%MONGO_DB% -e MONGO_COLLECTION_NAME=users %DOCKERHUB_IMAGE%
+                    echo ⏳ Waiting for application to start...
+                    timeout /t 15 /nobreak
+                    echo ✅ Application started successfully
+                    docker ps | findstr %APP_CONTAINER%
                 """
             }
         }
@@ -119,18 +93,17 @@ pipeline {
         stage('Test Health Endpoint') {
             steps {
                 echo '========== Testing Health Endpoint =========='
-                sh """
-                    echo '🔍 Testing /health endpoint...'
-                    RESPONSE=\$(curl -s http://localhost:${TEST_PORT}/health)
-                    echo "Response: \$RESPONSE"
+                powershell """
+                    Write-Host '🔍 Testing /health endpoint...'
+                    \$response = Invoke-WebRequest -Uri "http://localhost:${env:TEST_PORT}/health" -UseBasicParsing
+                    Write-Host "Response: \$($response.Content)"
                     
-                    # Check if response contains "healthy"
-                    if echo "\$RESPONSE" | grep -q "healthy"; then
-                        echo '✅ Health check PASSED'
-                    else
-                        echo '❌ Health check FAILED'
+                    if (\$response.Content -match 'healthy') {
+                        Write-Host '✅ Health check PASSED'
+                    } else {
+                        Write-Host '❌ Health check FAILED'
                         exit 1
-                    fi
+                    }
                 """
             }
         }
@@ -138,17 +111,17 @@ pipeline {
         stage('Test Home Page') {
             steps {
                 echo '========== Testing Home Page =========='
-                sh """
-                    echo '🔍 Testing home page (/)...'
-                    STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${TEST_PORT}/)
-                    echo "HTTP Status: \$STATUS"
+                powershell """
+                    Write-Host '🔍 Testing home page (/)...'
+                    \$response = Invoke-WebRequest -Uri "http://localhost:${env:TEST_PORT}/" -UseBasicParsing
+                    Write-Host "HTTP Status: \$($response.StatusCode)"
                     
-                    if [ "\$STATUS" = "200" ]; then
-                        echo '✅ Home page test PASSED'
-                    else
-                        echo '❌ Home page test FAILED'
+                    if (\$response.StatusCode -eq 200) {
+                        Write-Host '✅ Home page test PASSED'
+                    } else {
+                        Write-Host '❌ Home page test FAILED'
                         exit 1
-                    fi
+                    }
                 """
             }
         }
@@ -156,18 +129,17 @@ pipeline {
         stage('Test Users Endpoint') {
             steps {
                 echo '========== Testing Users Endpoint =========='
-                sh """
-                    echo '🔍 Testing /users endpoint...'
-                    RESPONSE=\$(curl -s http://localhost:${TEST_PORT}/users)
-                    echo "Response: \$RESPONSE"
+                powershell """
+                    Write-Host '🔍 Testing /users endpoint...'
+                    \$response = Invoke-WebRequest -Uri "http://localhost:${env:TEST_PORT}/users" -UseBasicParsing
+                    Write-Host "Response: \$($response.Content)"
                     
-                    # Check if response contains "success"
-                    if echo "\$RESPONSE" | grep -q "success"; then
-                        echo '✅ Users endpoint test PASSED'
-                    else
-                        echo '❌ Users endpoint test FAILED'
+                    if (\$response.Content -match 'success') {
+                        Write-Host '✅ Users endpoint test PASSED'
+                    } else {
+                        Write-Host '❌ Users endpoint test FAILED'
                         exit 1
-                    fi
+                    }
                 """
             }
         }
@@ -175,21 +147,23 @@ pipeline {
         stage('Test Data Submission') {
             steps {
                 echo '========== Testing Data Submission =========='
-                sh """
-                    echo '🔍 Testing POST /submit endpoint...'
-                    RESPONSE=\$(curl -s -X POST http://localhost:${TEST_PORT}/submit \
-                      -H "Content-Type: application/json" \
-                      -d '{"name":"Jenkins Test User","email":"jenkins@test.com","phone":"1234567890"}')
+                powershell """
+                    Write-Host '🔍 Testing POST /submit endpoint...'
+                    \$body = @{
+                        name = 'Jenkins Test User'
+                        email = 'jenkins@test.com'
+                        phone = '1234567890'
+                    } | ConvertTo-Json
                     
-                    echo "Response: \$RESPONSE"
+                    \$response = Invoke-WebRequest -Uri "http://localhost:${env:TEST_PORT}/submit" -Method POST -Body \$body -ContentType 'application/json' -UseBasicParsing
+                    Write-Host "Response: \$($response.Content)"
                     
-                    # Check if submission was successful
-                    if echo "\$RESPONSE" | grep -q "success"; then
-                        echo '✅ Data submission test PASSED'
-                    else
-                        echo '❌ Data submission test FAILED'
+                    if (\$response.Content -match 'success') {
+                        Write-Host '✅ Data submission test PASSED'
+                    } else {
+                        Write-Host '❌ Data submission test FAILED'
                         exit 1
-                    fi
+                    }
                 """
             }
         }
@@ -197,18 +171,17 @@ pipeline {
         stage('Verify Data in Database') {
             steps {
                 echo '========== Verifying Data Stored in Database =========='
-                sh """
-                    echo '🔍 Retrieving users from database...'
-                    RESPONSE=\$(curl -s http://localhost:${TEST_PORT}/users)
-                    echo "Response: \$RESPONSE"
+                powershell """
+                    Write-Host '🔍 Retrieving users from database...'
+                    \$response = Invoke-WebRequest -Uri "http://localhost:${env:TEST_PORT}/users" -UseBasicParsing
+                    Write-Host "Response: \$($response.Content)"
                     
-                    # Check if our test user exists
-                    if echo "\$RESPONSE" | grep -q "Jenkins Test User"; then
-                        echo '✅ Database verification PASSED'
-                    else
-                        echo '❌ Database verification FAILED'
+                    if (\$response.Content -match 'Jenkins Test User') {
+                        Write-Host '✅ Database verification PASSED'
+                    } else {
+                        Write-Host '❌ Database verification FAILED'
                         exit 1
-                    fi
+                    }
                 """
             }
         }
@@ -216,12 +189,12 @@ pipeline {
         stage('View Application Logs') {
             steps {
                 echo '========== Displaying Application Logs =========='
-                sh """
-                    echo '📋 Flask Application Logs:'
-                    docker logs --tail 30 ${APP_CONTAINER}
-                    echo ''
-                    echo '📋 MongoDB Logs:'
-                    docker logs --tail 20 ${MONGO_CONTAINER}
+                bat """
+                    echo 📋 Flask Application Logs:
+                    docker logs --tail 30 %APP_CONTAINER%
+                    echo.
+                    echo 📋 MongoDB Logs:
+                    docker logs --tail 20 %MONGO_CONTAINER%
                 """
             }
         }
@@ -257,22 +230,22 @@ pipeline {
             '''
             
             // Display detailed logs on failure
-            sh """
-                echo '📋 Full Application Logs:'
-                docker logs ${APP_CONTAINER} 2>&1 || echo 'No app logs available'
-                echo ''
-                echo '📋 Full MongoDB Logs:'
-                docker logs ${MONGO_CONTAINER} 2>&1 || echo 'No MongoDB logs available'
+            bat """
+                echo 📋 Full Application Logs:
+                docker logs %APP_CONTAINER% 2>&1 || echo No app logs available
+                echo.
+                echo 📋 Full MongoDB Logs:
+                docker logs %MONGO_CONTAINER% 2>&1 || echo No MongoDB logs available
             """
         }
         
         cleanup {
             echo '========== Cleaning Up Test Environment =========='
-            sh """
-                docker stop ${APP_CONTAINER} ${MONGO_CONTAINER} 2>/dev/null || true
-                docker rm ${APP_CONTAINER} ${MONGO_CONTAINER} 2>/dev/null || true
-                docker logout || true
-                echo '✅ Cleanup completed'
+            bat """
+                docker stop %APP_CONTAINER% %MONGO_CONTAINER% 2>nul || echo Skipped
+                docker rm %APP_CONTAINER% %MONGO_CONTAINER% 2>nul || echo Skipped
+                docker logout || echo Skipped
+                echo ✅ Cleanup completed
             """
         }
     }
