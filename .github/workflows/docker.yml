@@ -1,4 +1,4 @@
-name: Docker Build and Deploy
+name: CI/CD Pipeline
 
 on:
   push:
@@ -16,12 +16,13 @@ jobs:
       - name: Build Docker image
         run: docker build -t tuheen27/two-tier-frontend-application:latest .
 
-      - name: Test Docker image
+      - name: Test Docker image with MongoDB
         run: |
-          docker run -d --name test-mongo -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
-          sleep 5
-          docker run -d --name test-app -p 5000:5000 --link test-mongo:mongodb \
-            -e MONGO_HOST=test-mongo \
+          docker network create app-network
+          docker run -d --name mongodb --network app-network -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7.0
+          sleep 10
+          docker run -d --name flask_application --network app-network -p 5000:5000 \
+            -e MONGO_HOST=mongodb \
             -e MONGO_PORT=27017 \
             -e MONGO_USERNAME=admin \
             -e MONGO_PASSWORD=password123 \
@@ -29,13 +30,48 @@ jobs:
             -e MONGO_DB_NAME=flask_app \
             -e MONGO_COLLECTION_NAME=users \
             tuheen27/two-tier-frontend-application:latest
-          sleep 10
+          sleep 15
+          
+          echo "Testing health endpoint..."
           curl -f http://localhost:5000/health || exit 1
-          docker stop test-app test-mongo
-          docker rm test-app test-mongo
+          
+          echo "Testing home page..."
+          curl -f http://localhost:5000/ || exit 1
+          
+          echo "Testing users endpoint..."
+          curl -f http://localhost:5000/users || exit 1
+          
+          echo "All tests passed!"
+          
+          docker stop flask_application mongodb
+          docker rm flask_application mongodb
+          docker network rm app-network
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Push to Docker Hub
         run: docker push tuheen27/two-tier-frontend-application:latest
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Login to AWS ECR
+        run: |
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 744709874293.dkr.ecr.ap-south-1.amazonaws.com
+
+      - name: Tag and Push to AWS ECR
+        run: |
+          docker tag tuheen27/two-tier-frontend-application:latest 744709874293.dkr.ecr.ap-south-1.amazonaws.com/dockerimage:latest
+          docker push 744709874293.dkr.ecr.ap-south-1.amazonaws.com/dockerimage:latest
+          echo "✅ Successfully pushed to AWS ECR"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker system prune -f
+          docker logout
