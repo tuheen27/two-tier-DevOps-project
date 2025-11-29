@@ -1,0 +1,23 @@
+CI/CD Pipeline Automation for Two-Tier Flask Application
+Technologies: Python, Flask, MongoDB, Docker, Kubernetes, Jenkins, GitHub Actions, Git
+GitHub: github.com/tuheen27/DevOps-Project-Two-Tier-Flask-App
+
+• Architected and implemented complete CI/CD pipeline using GitHub Actions and Jenkins, 
+  automating build, test, and deployment workflows with zero manual intervention, 
+  reducing deployment time from 2 hours to 12 minutes
+
+• Containerized Flask + MongoDB application using Docker with Alpine Linux base image 
+  (50MB), orchestrated multi-container environment with Docker Compose featuring 
+  persistent volumes and custom networking
+
+• Built automated testing pipeline with 10 stages in Jenkins validating health checks, 
+  REST API endpoints, database operations, and data persistence with detailed error 
+  reporting and rollback capabilities
+
+• Deployed to Kubernetes cluster with 3-replica configuration for high availability, 
+  configured LoadBalancer and NodePort services (port 30080) with automated health 
+  monitoring endpoints
+
+• Implemented multi-tag Docker versioning strategy (latest, semantic v1.0.X, git SHA) 
+  with automated Docker Hub publishing, enabling instant rollback and version tracking 
+  for production deployments
