@@ -5,8 +5,9 @@ pipeline {
         DOCKERHUB_CREDENTIALS = 'DOCKER'
         DOCKERHUB_IMAGE = 'tuheen27/two-tier-frontend-application:latest'
         AWS_CREDENTIALS = 'AWS_CREDENTIALS'
-        AWS_REGION = 'us-east-1'
-        ECR_REPOSITORY = 'two-tier-flask-app'
+        AWS_REGION = 'ap-south-1'
+        ECR_REPOSITORY = 'dockerimage'
+        ECR_URI = '744709874293.dkr.ecr.ap-south-1.amazonaws.com/dockerimage:latest'
     }
 
     triggers {
@@ -73,9 +74,7 @@ pipeline {
                 script {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: AWS_CREDENTIALS]]) {
                         bat '''
-                            for /f "tokens=*" %%i in ('aws sts get-caller-identity --query Account --output text') do set AWS_ACCOUNT_ID=%%i
-                            set ECR_URI=%AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/%ECR_REPOSITORY%:latest
-                            aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com
+                            aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin 744709874293.dkr.ecr.ap-south-1.amazonaws.com
                             docker tag %DOCKERHUB_IMAGE% %ECR_URI%
                             docker push %ECR_URI%
                             echo ✅ Pushed to ECR: %ECR_URI%
